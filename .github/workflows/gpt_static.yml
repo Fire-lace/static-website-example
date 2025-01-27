@@ -1,0 +1,49 @@
+# Workflow for deploying a static website on an EC2 instance
+name: Deploy Static Website
+
+on:
+  push:
+    branches:
+      - "master"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Copy Files to Server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          source: "./*"
+          target: "/home/ubuntu/Static-Site"
+
+      - name: Install Dependencies and Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          script: |
+            # Update and install Nginx
+            sudo apt update && sudo apt install nginx -y
+            
+            # Move the static files to the Nginx serving directory
+            sudo cp -r /home/ubuntu/Static-Site/* /var/www/html
+            
+            # Restart Nginx to apply changes
+            sudo systemctl restart nginx
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment to EC2 instance successful. Your static website is live at http://${{ secrets.HOST }}/"
